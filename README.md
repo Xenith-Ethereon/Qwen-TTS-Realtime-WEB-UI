@@ -72,3 +72,8 @@ python app.py
 ## API Key
 
 去 [阿里云百炼](https://help.aliyun.com/zh/model-studio/get-api-key) 申请。
+
+## 更多
+
+更多请查看 [阿里云百炼文档](https://help.aliyun.com/zh/model-studio/what-is-model-studio)
+
