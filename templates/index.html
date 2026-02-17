@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen TTS Realtime 简易web ui</title>
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --border: #e0e0e0;
+            --text: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent: #0071e3;
+            --accent-hover: #0059b3;
+            --danger: #e53935;
+            --danger-hover: #c62828;
+            --success: #2e7d32;
+            --radius: 10px;
+            --shadow: 0 1px 3px rgba(0, 0, 0, .08), 0 1px 2px rgba(0, 0, 0, .06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            padding: 32px 16px 16px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 16px 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+        }
+
+        .panel-title {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #fafafa;
+            transition: border-color .2s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: #fff;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        input[type="file"] {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background .2s, transform .1s;
+        }
+
+        .btn:active {
+            transform: scale(.97);
+        }
+
+        .btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            padding: 5px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: var(--danger-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: rgba(0, 113, 227, .06);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status {
+            margin-top: 14px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+            word-break: break-all;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: var(--success);
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: var(--danger);
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: var(--accent);
+        }
+
+        .voice-list {
+            margin-top: 16px;
+        }
+
+        .voice-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            transition: background .15s;
+        }
+
+        .voice-item:hover {
+            background: #fafafa;
+        }
+
+        .voice-item .voice-name {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: var(--text);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 10px;
+        }
+
+        .voice-item .voice-meta {
+            color: var(--text-secondary);
+            font-size: 11px;
+            margin-right: 10px;
+            white-space: nowrap;
+        }
+
+        .voice-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn-copy {
+            background: #f0f0f0;
+            color: var(--text);
+            padding: 4px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-copy:hover {
+            background: #e0e0e0;
+        }
+
+        .audio-player {
+            margin-top: 16px;
+        }
+
+        .audio-player audio {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .inline-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin .6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Qwen TTS Realtime 简易web ui</h1>
+        <p>基于阿里云 DashScope</p>
+        <p>仅供学习交流·请勿用于非法用途</p>
+    </header>
+
+    <div class="container">
+        <div class="panel">
+            <div class="panel-title">
+                声音复刻
+            </div>
+
+            <div class="form-group">
+                <label>上传音频（WAV / MP3 / M4A，10~20秒，≤10MB）</label>
+                <input type="file" id="vc-audio" accept=".wav,.mp3,.m4a">
+            </div>
+
+            <div class="inline-fields">
+                <div class="form-group">
+                    <label>音色名称</label>
+                    <input type="text" id="vc-name" placeholder="例如 kafuka" value="kafuka">
+                </div>
+                <div class="form-group">
+                    <label>目标模型</label>
+                    <select id="vc-model">
+                        <option value="qwen3-tts-vc-realtime-2026-01-15" selected>VC-Realtime 2026-01-15 (最新)</option>
+                        <option value="qwen3-tts-vc-realtime-2025-11-27">VC-Realtime 2025-11-27</option>
+                        <option value="qwen3-tts-vc-2026-01-22">VC 2026-01-22 (非流式)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="createVoice()" id="btn-create">
+                    创建音色
+                </button>
+                <button class="btn btn-outline" onclick="loadVoices()">
+                    刷新音色列表
+                </button>
+            </div>
+
+            <div id="vc-status" class="status"></div>
+
+            <div class="voice-list" id="voice-list">
+                <div class="empty-state">点击「刷新音色列表」加载</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">
+                语音合成
+            </div>
+
+            <div class="form-group">
+                <label>合成文本</label>
+                <textarea id="tts-text" placeholder="请输入需要合成的文字内容…">你好！很高兴认识你。</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>音色（复刻音色名 或 系统音色如 Cherry / Serena / Ethan）</label>
+                <input type="text" id="tts-voice" placeholder="Cherry 或复刻音色名" value="Cherry">
+            </div>
+
+            <div class="inline-fields">
+                <div class="form-group">
+                    <label>合成模型</label>
+                    <select id="tts-model">
+                        <option value="qwen3-tts-vc-realtime-2026-01-15" selected>VC-Realtime 2026-01-15 (复刻·流式)
+                        </option>
+                        <option value="qwen3-tts-vc-realtime-2025-11-27">VC-Realtime 2025-11-27 (复刻·流式)</option>
+                        <option value="qwen3-tts-vc-2026-01-22">VC 2026-01-22 (复刻·非流式)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>语种</label>
+                    <select id="tts-lang">
+                        <option value="Auto" selected>自动识别</option>
+                        <option value="Chinese">中文</option>
+                        <option value="English">English</option>
+                        <option value="Japanese">日语</option>
+                        <option value="Korean">韩语</option>
+                        <option value="French">法语</option>
+                        <option value="German">德语</option>
+                        <option value="Spanish">西班牙语</option>
+                        <option value="Russian">俄语</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="synthesize()" id="btn-synth">
+                    合成语音
+                </button>
+            </div>
+
+            <div id="tts-status" class="status"></div>
+
+            <div class="audio-player" id="tts-player" style="display:none;">
+                <audio id="tts-audio" controls></audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(id, msg, type) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.className = 'status show ' + type;
+        }
+        function hideStatus(id) {
+            document.getElementById(id).className = 'status';
+        }
+        function setLoading(btnId, loading) {
+            const btn = document.getElementById(btnId);
+            if (loading) {
+                btn._text = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner"></span> 处理中…';
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = btn._text;
+                btn.disabled = false;
+            }
+        }
+
+        async function createVoice() {
+            const file = document.getElementById('vc-audio').files[0];
+            if (!file) { showStatus('vc-status', '请先选择音频文件', 'error'); return; }
+
+            const name = document.getElementById('vc-name').value.trim() || 'custom_voice';
+            const model = document.getElementById('vc-model').value;
+
+            const fd = new FormData();
+            fd.append('audio', file);
+            fd.append('preferred_name', name);
+            fd.append('target_model', model);
+
+            setLoading('btn-create', true);
+            hideStatus('vc-status');
+
+            try {
+                const res = await fetch('/api/voice/create', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('vc-status', '音色创建成功: ' + data.voice, 'success');
+                    loadVoices();
+                } else {
+                    showStatus('vc-status', data.error, 'error');
+                }
+            } catch (e) {
+                showStatus('vc-status', '请求失败: ' + e.message, 'error');
+            } finally {
+                setLoading('btn-create', false);
+            }
+        }
+
+        async function loadVoices() {
+            const list = document.getElementById('voice-list');
+            list.innerHTML = '<div class="empty-state">加载中…</div>';
+
+            try {
+                const res = await fetch('/api/voice/list');
+                const data = await res.json();
+                if (data.success && data.voices.length > 0) {
+                    list.innerHTML = data.voices.map(v => `
+                        <div class="voice-item">
+                            <span class="voice-name" title="${v.voice}">${v.voice}</span>
+                            <span class="voice-meta">${v.gmt_create || ''}</span>
+                            <div class="voice-actions">
+                                <button class="btn-copy" onclick="useVoice('${v.voice}', '${v.target_model || ''}')">使用</button>
+                                <button class="btn btn-danger" onclick="deleteVoice('${v.voice}')">删除</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else if (data.success) {
+                    list.innerHTML = '<div class="empty-state">暂无音色，上传音频创建一个吧</div>';
+                } else {
+                    list.innerHTML = '<div class="empty-state">加载失败: ' + data.error + '</div>';
+                }
+            } catch (e) {
+                list.innerHTML = '<div class="empty-state">请求失败: ' + e.message + '</div>';
+            }
+        }
+
+        function useVoice(voice, model) {
+            document.getElementById('tts-voice').value = voice;
+            if (model) {
+                const select = document.getElementById('tts-model');
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === model) {
+                        select.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            showStatus('tts-status', '已填入音色: ' + voice, 'info');
+        }
+
+        async function deleteVoice(voice) {
+            if (!confirm('确定要删除音色 "' + voice + '" 吗？')) return;
+
+            try {
+                const res = await fetch('/api/voice/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voice })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('vc-status', '音色已删除', 'success');
+                    loadVoices();
+                } else {
+                    showStatus('vc-status', data.error, 'error');
+                }
+            } catch (e) {
+                showStatus('vc-status', '删除失败: ' + e.message, 'error');
+            }
+        }
+
+        async function synthesize() {
+            const text = document.getElementById('tts-text').value.trim();
+            if (!text) { showStatus('tts-status', '请输入合成文本', 'error'); return; }
+
+            const voice = document.getElementById('tts-voice').value.trim() || 'Cherry';
+            const model = document.getElementById('tts-model').value;
+            const lang = document.getElementById('tts-lang').value;
+
+            setLoading('btn-synth', true);
+            hideStatus('tts-status');
+            document.getElementById('tts-player').style.display = 'none';
+
+            try {
+                const res = await fetch('/api/tts/synthesize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, voice, model, language_type: lang })
+                });
+
+                if (res.ok && res.headers.get('content-type')?.includes('audio')) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const audio = document.getElementById('tts-audio');
+                    audio.src = url;
+                    document.getElementById('tts-player').style.display = 'block';
+                    audio.play();
+                    showStatus('tts-status', '合成成功，正在播放', 'success');
+                } else {
+                    const data = await res.json();
+                    showStatus('tts-status', (data.error || '合成失败'), 'error');
+                }
+            } catch (e) {
+                showStatus('tts-status', '请求失败: ' + e.message, 'error');
+            } finally {
+                setLoading('btn-synth', false);
+            }
+        }
+    </script>
+</body>
+
+</html>
